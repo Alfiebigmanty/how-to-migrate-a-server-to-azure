@@ -1,0 +1,164 @@
+Before initiating any migration, it is essential to understand the existing environment. Begin with a comprehensive inventory and assessment:
+
+Identify all running services: DHCP, DNS, IIS/Web servers, VPN endpoints, custom business apps, and SMB file shares.
+
+Use Azure Migrate, Microsoft’s assessment tool, to scan your servers and dependencies. This tool helps visualize which workloads can be moved to Platform as a Service (PaaS) and which require Infrastructure as a Service (IaaS).
+
+Establish service interdependencies (e.g., app servers depending on DNS or file storage).
+
+Define uptime requirements for each service, identifying high-availability needs and acceptable downtime thresholds.
+
+Plan for Identity integration by determining whether on-premises Active Directory will be extended to Azure or replaced.
+
+This phase sets the foundation and helps design a right-sized Azure environment that aligns with business needs.
+
+🌐 Phase 2: Network and Identity Foundation
+A secure and resilient Azure infrastructure begins with the network topology and identity services.
+
+1. Virtual Network Setup
+Create an Azure Virtual Network (VNet) to simulate your on-premise network layout. Subnets should be segmented by role:
+
+DMZ Subnet for public-facing apps or web servers
+
+Internal Subnet for DNS, DHCP (if required), and applications
+
+Storage Subnet for file storage access
+
+Apply Network Security Groups (NSGs) to restrict traffic per subnet.
+
+2. Site-to-Site VPN
+Set up a Site-to-Site VPN Gateway to connect Azure with your on-premises network. This ensures hybrid operation during migration and supports fallback or dual usage during cutover.
+
+3. Identity Synchronization
+Deploy Azure AD Connect to sync on-prem Active Directory users to Azure Active Directory (AAD).
+
+Set up Azure Active Directory Domain Services (AAD DS) to provide domain join, group policy, and LDAP support for workloads that require traditional domain-based authentication.
+
+These steps create a hybrid identity environment necessary for smooth workload migration and post-migration operations.
+
+🧱 Phase 3: Core Services Deployment (DNS, DHCP, VPN, File)
+1. DNS Migration
+Azure DNS can be used to manage external DNS zones. Internal name resolution can be handled in one of two ways:
+
+Windows DNS VM running on Azure, configured to use AD-integrated zones
+
+Azure VNet's custom DNS configuration, pointing to this VM or hybrid resolver
+
+To minimize disruption:
+
+Set low TTLs (e.g., 5 minutes) on current DNS records before cutover
+
+During cutover, point clients to the new DNS server IPs on Azure
+
+2. DHCP Setup
+Azure doesn't natively support DHCP in the traditional Windows sense. However, most of the IP assignment inside VNets is handled by Azure itself. For hybrid or VM-intensive environments:
+
+Deploy a Windows Server VM running DHCP in a dedicated subnet.
+
+Scope design should avoid conflicts with Azure-assigned ranges.
+
+Optionally, keep DHCP services on-premises during the initial hybrid phase.
+
+3. VPN Migration
+Migrate VPN functionality to Azure VPN Gateway. Configure:
+
+Point-to-site for individual clients
+
+Site-to-site for permanent on-prem connectivity
+
+Test VPN access thoroughly and ensure all routing policies are updated in firewalls or NSGs to allow traffic.
+
+4. File Services Migration
+Azure offers several file storage options:
+
+Azure Files with AD authentication for cloud-native SMB file sharing.
+
+Use Azure File Sync to keep your on-premise file server and Azure Files synchronized, allowing gradual migration.
+
+Apply access controls using Azure AD DS-integrated NTFS permissions.
+
+This hybrid approach allows users to continue accessing files without disruption.
+
+💻 Phase 4: Application and Web Server Migration
+1. Internal and External Web Servers
+Depending on the application type, there are several options:
+
+Azure App Service: Ideal for .NET, PHP, Node.js, Java apps.
+
+Supports staging slots for zero-downtime deployment.
+
+Integrated VNet support allows backend access.
+
+Azure Front Door or Application Gateway:
+
+For external web services, provides global load balancing and Web Application Firewall (WAF) features.
+
+Can handle HTTPS termination, DDoS protection, and performance routing.
+
+Apps not compatible with PaaS can be lifted-and-shifted to Windows/Linux VMs within the VNet.
+
+2. Business Applications
+Evaluate compatibility with App Service, containers, or Azure Virtual Machines.
+
+Use Azure Migrate: App Containerization if suitable.
+
+For legacy apps, a dedicated VM may be more appropriate initially, with long-term modernization goals.
+
+🧪 Phase 5: Testing and Validation
+Before executing the final migration:
+
+Test each service in isolation and in integrated workflows.
+
+Validate identity authentication (NTLM/Kerberos), file access, DHCP lease assignment, DNS resolution, VPN tunnels, and app performance.
+
+Run failover scenarios, such as disconnecting on-prem DNS or DHCP to simulate a full cloud takeover.
+
+Ensure monitoring is active:
+
+Set up Azure Monitor and Log Analytics to track key metrics.
+
+Define alerts for service downtime or unusual network activity.
+
+🕐 Phase 6: Final Cutover and Post-Migration Optimization
+Final Cutover
+Schedule the cutover during a low-traffic window.
+
+Migrate file shares with Storage Migration Service or copy final deltas via Robocopy or AzCopy.
+
+Point DHCP clients to new scopes (or let Azure assign IPs natively).
+
+Update DNS records or zones to Azure DNS and set TTLs back to production values.
+
+Swap production slots in App Service for web apps.
+
+Post-Migration
+Decommission unused on-prem infrastructure.
+
+Perform backup configuration with Azure Backup.
+
+Optimize costs using Azure Cost Management + Reservations for long-term discounts.
+
+Document new architecture and update IT playbooks.
+
+💸 Cost Planning
+The following table provides a monthly estimate for a medium-sized deployment (USD):
+
+Component	Azure Service	Monthly Estimate
+VPN Gateway	VpnGw1	$140
+DNS Hosting	Azure DNS	$5
+DHCP Server	Windows Server VM (B2ms)	$70
+Web Apps	App Service Plan (P1V2)	$75
+External Web Gateway	Azure Front Door + WAF	$120
+App Servers	2 VMs or App Service (medium)	$140
+File Storage	Azure Files (1TB, LRS)	$50
+AD Services	Azure AD DS	$110
+Logging/Monitoring	Azure Monitor (5 GB/day)	$50
+Backup	Azure Backup (500 GB)	$25
+Total Monthly Cost		~$685
+
+Assumes Azure Hybrid Benefit (existing Windows licenses) and moderate usage.
+
+🧠 Conclusion
+Migrating essential infrastructure services to Azure demands meticulous planning, structured execution, and continuous validation. Microsoft provides a mature ecosystem of services—such as Azure App Service, Azure DNS, Azure VPN Gateway, and Azure Files—that replicate and improve upon traditional on-premise roles.
+
+By adopting a phased, hybrid migration approach, organizations can maintain operational continuity, minimize service disruption, and gradually modernize their IT footprint for better agility and resilience in the cloud.
